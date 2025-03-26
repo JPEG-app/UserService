@@ -16,6 +16,7 @@ export class AuthController {
       if (error.message === 'Email already in use') {
         res.status(400).json({ message: error.message });
       } else {
+        console.error(error);
         res.status(500).json({ message: 'Internal server error' });
       }
     }
@@ -30,6 +31,7 @@ export class AuthController {
       if (error.message === 'Invalid credentials') {
         res.status(401).json({ message: error.message });
       } else {
+        console.error(error);
         res.status(500).json({ message: 'Internal server error' });
       }
     }

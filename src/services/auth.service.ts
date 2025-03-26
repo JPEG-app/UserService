@@ -13,11 +13,6 @@ export class AuthService {
   }
 
   async register(user: UserCreationAttributes): Promise<User> {
-    const existingUser = await this.userRepository.findUserByEmail(user.email);
-    if (existingUser) {
-      throw new Error('Email already in use');
-    }
-
     const hashedPassword = await bcrypt.hash(user.passwordHash, 10);
     return this.userRepository.createUser({ ...user, passwordHash: hashedPassword });
   }
@@ -27,6 +22,9 @@ export class AuthService {
     if (!user) {
       throw new Error('Invalid credentials');
     }
+
+    console.log("Plain text password:", password);
+    console.log("Hashed password from DB:", user.passwordHash);
 
     const passwordMatch = await bcrypt.compare(password, user.passwordHash);
     if (!passwordMatch) {

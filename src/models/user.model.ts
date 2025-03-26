@@ -7,14 +7,14 @@ export interface User {
     updatedAt?: Date;
   }
   
-  export interface UserCreationAttributes {
-    username: string;
-    email: string;
-    passwordHash: string;
-  }
-  
-  export interface UserUpdateAttributes {
-    username?: string;
-    email?: string;
-    passwordHash?: string;
-  }
+export interface UserCreationAttributes {
+  username: string;
+  email: string;
+  passwordHash: string;
+}
+
+export interface UserUpdateAttributes {
+  username?: string;
+  email?: string;
+  passwordHash?: string;
+}

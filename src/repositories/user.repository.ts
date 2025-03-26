@@ -15,7 +15,7 @@ const pool = new Pool({
 export class UserRepository {
   async createUser(user: UserCreationAttributes): Promise<User> {
     try {
-      const query = 'INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING *';
+      const query = 'INSERT INTO users (username, email, "passwordHash") VALUES ($1, $2, $3) RETURNING *';
       const values = [user.username, user.email, user.passwordHash];
       const result = await pool.query(query, values);
       return result.rows[0];
@@ -66,7 +66,7 @@ export class UserRepository {
         paramCount++;
       }
       if (updatedUser.passwordHash) {
-        query += `password = $${paramCount}, `;
+        query += `"passwordHash" = $${paramCount}, `;
         values.push(updatedUser.passwordHash);
         paramCount++;
       }
@@ -100,14 +100,14 @@ export class UserRepository {
     }
   }
 
-  // async findAllUsers(): Promise<User> {
-  //   try {
-  //     const query = 'SELECT * FROM users';
-  //     const result = await pool.query(query);
-  //     return result.rows;
-  //   } catch (error: any) {
-  //     console.error('Error finding all users:', error);
-  //     throw new Error('Database error: ' + error.message);
-  //   }
-  // }
+  async findAllUsers(): Promise<User[]> {
+    try {
+      const query = 'SELECT * FROM users';
+      const result = await pool.query(query);
+      return result.rows;
+    } catch (error: any) {
+      console.error('Error finding all users:', error);
+      throw new Error('Database error: ' + error.message);
+    }
+  }
 }
