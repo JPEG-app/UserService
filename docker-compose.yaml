@@ -1,3 +1,4 @@
+version: "3.8"
 services:
   user-service:
     build: .
@@ -7,22 +8,32 @@ services:
       - .env
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://postgres:password@db:5432/users
+      # DB_USER: postgres
+      # DB_HOST: db
+      # DB_NAME: users
+      # DB_PASSWORD: password
     depends_on:
       - db
+    networks:
+      - jpeg
 
   db:
-    image: postgres:latest
+    build: ./db
     ports:
-      - "5432:5432" 
+      - "5432:5432"
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: users
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     volumes:
       - db_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - jpeg
     restart: always
 
 volumes:
   db_data:
+
+networks:
+  jpeg:
+    external: true
