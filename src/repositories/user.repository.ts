@@ -15,8 +15,8 @@ const pool = new Pool({
 export class UserRepository {
   async createUser(user: UserCreationAttributes): Promise<User> {
     try {
-      const query = 'INSERT INTO users (username, email, "passwordHash") VALUES ($1, $2, $3) RETURNING *';
-      const values = [user.username, user.email, user.passwordHash];
+      const query = 'INSERT INTO users (username, email, "passwordhash") VALUES ($1, $2, $3) RETURNING *';
+      const values = [user.username, user.email, user.passwordhash];
       const result = await pool.query(query, values);
       return result.rows[0];
     } catch (error: any) {
@@ -65,9 +65,9 @@ export class UserRepository {
         values.push(updatedUser.email);
         paramCount++;
       }
-      if (updatedUser.passwordHash) {
-        query += `"passwordHash" = $${paramCount}, `;
-        values.push(updatedUser.passwordHash);
+      if (updatedUser.passwordhash) {
+        query += `"passwordhash" = $${paramCount}, `;
+        values.push(updatedUser.passwordhash);
         paramCount++;
       }
 

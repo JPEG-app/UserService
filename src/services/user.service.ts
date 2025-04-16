@@ -10,8 +10,8 @@ export class UserService {
   }
 
   async createUser(user: UserCreationAttributes): Promise<User> {
-    const hashedPassword = await bcrypt.hash(user.passwordHash, 10); // Hash the password
-    return this.userRepository.createUser({ ...user, passwordHash: hashedPassword });
+    const hashedPassword = await bcrypt.hash(user.passwordhash, 10); // Hash the password
+    return this.userRepository.createUser({ ...user, passwordhash: hashedPassword });
   }
 
   async findUserById(id: string): Promise<User | undefined> {
@@ -27,8 +27,8 @@ export class UserService {
   }
 
   async updateUser(id: string, updatedUser: UserUpdateAttributes): Promise<User | undefined> {
-    if (updatedUser.passwordHash) {
-      updatedUser.passwordHash = await bcrypt.hash(updatedUser.passwordHash, 10);
+    if (updatedUser.passwordhash) {
+      updatedUser.passwordhash = await bcrypt.hash(updatedUser.passwordhash, 10);
     }
     return this.userRepository.updateUser(id, updatedUser);
   }
@@ -39,6 +39,6 @@ export class UserService {
 
   async updateUserPassword(id: string, newPassword: string): Promise<User | undefined> {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    return this.userRepository.updateUser(id, { passwordHash: hashedPassword });
+    return this.userRepository.updateUser(id, { passwordhash: hashedPassword });
   }
 }

@@ -13,8 +13,8 @@ export class AuthService {
   }
 
   async register(user: UserCreationAttributes): Promise<User> {
-    const hashedPassword = await bcrypt.hash(user.passwordHash, 10);
-    return this.userRepository.createUser({ ...user, passwordHash: hashedPassword });
+    const hashedPassword = await bcrypt.hash(user.passwordhash, 10);
+    return this.userRepository.createUser({ ...user, passwordhash: hashedPassword });
   }
 
   async login(email: string, password: string): Promise<{ token: string }> {
@@ -24,9 +24,9 @@ export class AuthService {
     }
 
     console.log("Plain text password:", password);
-    console.log("Hashed password from DB:", user.passwordHash);
+    console.log("Hashed password from DB:", user.passwordhash);
 
-    const passwordMatch = await bcrypt.compare(password, user.passwordHash);
+    const passwordMatch = await bcrypt.compare(password, user.passwordhash);
     if (!passwordMatch) {
       throw new Error('Invalid credentials');
     }

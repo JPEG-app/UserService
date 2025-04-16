@@ -1,0 +1,160 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: db-secret
+type: Opaque
+stringData:
+  POSTGRES_USER: "postgres"
+  POSTGRES_PASSWORD: "password"
+---
+# --- Secret for User Service ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: user-service-secret
+type: Opaque
+stringData:
+  JWT_SECRET: "c478f4991a75562c9eb69af0b6dc45a163bbdf83b997be06e3cff37d93021e1a65c37823e6a1112dec4ffede54d7fda0bdda4f08074b48e76b992bc04a92276af4b83082a55d08ae2ff45fd817cbf2806886b8f4920fe0f879add10afb9282ac6d80a5f6f45ecc29b284d190f0d038f6313ca14b8e68984614002b546265488c1853f7b0494f1b6b5d512d4b404d56bc4c7bb53a8a8ca7e713d60d9f1f5f7ea3ef1e047a880bc0e3a245ebcc9d5f1eebcce6318e99e9a1583da9f3c2a8809953518b8a349d0148175f50489b2783d423704c5cb9432cc8600348bf848eaccf96da9f2b80ee49cac8b2c3710f340e45b74439a4be6014d24f4ba375cbdded51cf" # From .env
+---
+# --- ConfigMap for Database Initialization ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-init-config
+data:
+  init.sql: |
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      username VARCHAR(255) NOT NULL,
+      email VARCHAR(255) UNIQUE NOT NULL,
+      passwordhash VARCHAR(255) NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+---
+# --- ConfigMap for Database Configuration ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-config
+data:
+  POSTGRES_DB: "users"
+---
+# --- ConfigMap for User Service Configuration ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: user-service-config
+data:
+  NODE_ENV: "production"
+  PORT: "3001"
+  DB_HOST: "db-service"
+  DB_NAME: "users"
+  DB_USER: "postgres"
+  DB_PASSWORD: "password"
+---
+# --- Persistent Volume Claim for Database ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: db-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# --- Database Deployment ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-db
+  template:
+    metadata:
+      labels:
+        app: postgres-db
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5432
+        envFrom:
+        - secretRef:
+            name: db-secret
+        - configMapRef:
+            name: db-config
+        volumeMounts:
+        - name: db-storage
+          mountPath: /var/lib/postgresql/data
+        - name: db-init-scripts
+          mountPath: /docker-entrypoint-initdb.d
+      volumes:
+      - name: db-storage
+        persistentVolumeClaim:
+          claimName: db-pvc
+      - name: db-init-scripts
+        configMap:
+          name: db-init-config
+---
+# --- Database Service ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-service
+spec:
+  selector:
+    app: postgres-db
+  ports:
+  - protocol: TCP
+    port: 5432
+    targetPort: 5432
+  type: ClusterIP
+---
+# --- User Service Deployment ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+      - name: user-service
+        image: user-service:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 3001
+        envFrom:
+        - configMapRef:
+            name: user-service-config
+        - secretRef:
+            name: user-service-secret
+---
+# --- User Service ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service-service
+spec:
+  selector:
+    app: user-service
+  ports:
+  - protocol: TCP
+    port: 3001
+    targetPort: 3001
+  type: NodePort

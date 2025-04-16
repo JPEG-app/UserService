@@ -2,7 +2,7 @@ export interface User {
     id?: string;
     username: string;
     email: string;
-    passwordHash: string;
+    passwordhash: string;
     createdAt?: Date;
     updatedAt?: Date;
   }
@@ -10,11 +10,11 @@ export interface User {
 export interface UserCreationAttributes {
   username: string;
   email: string;
-  passwordHash: string;
+  passwordhash: string;
 }
 
 export interface UserUpdateAttributes {
   username?: string;
   email?: string;
-  passwordHash?: string;
+  passwordhash?: string;
 }
