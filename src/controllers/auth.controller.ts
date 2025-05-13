@@ -25,15 +25,14 @@ export class AuthController {
   async login(req: Request, res: Response) {
     try {
       const { email, password } = req.body;
-      const token = await this.authService.login(email, password);
-      res.json(token);
-    } catch (error: any) {
-      if (error.message === 'Invalid credentials') {
-        res.status(401).json({ message: error.message });
-      } else {
-        console.error(error);
-        res.status(500).json({ message: 'Internal server error' });
+      const result = await this.authService.login(email, password);
+      if (!result) {
+        return res.status(401).json({ message: 'Invalid credentials' });
       }
+      res.json(result);
+    } catch (error: any) {
+      console.error('Login error:', error);
+      res.status(500).json({ message: 'Internal server error during login' });
     }
   }
 

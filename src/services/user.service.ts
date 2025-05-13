@@ -1,6 +1,16 @@
 import { User, UserCreationAttributes, UserUpdateAttributes } from '../models/user.model';
 import { UserRepository } from '../repositories/user.repository';
 import bcrypt from 'bcrypt';
+import { getKafkaProducer } from '../kafka/producer';
+import { ProducerRecord } from 'kafkajs';
+
+const USER_LIFECYCLE_TOPIC = process.env.USER_LIFECYCLE_TOPIC || 'user_lifecycle_events';
+
+interface UserLifecycleEvent {
+  eventType: 'UserCreated' | 'UserDeleted' | 'UserUpdated';
+  userId: string;
+  timestamp: string;
+}
 
 export class UserService {
   private userRepository: UserRepository;
@@ -9,9 +19,39 @@ export class UserService {
     this.userRepository = userRepository;
   }
 
-  async createUser(user: UserCreationAttributes): Promise<User> {
-    const hashedPassword = await bcrypt.hash(user.passwordhash, 10); // Hash the password
-    return this.userRepository.createUser({ ...user, passwordhash: hashedPassword });
+  private async sendUserEvent(event: UserLifecycleEvent): Promise<void> {
+    try {
+      const producer = await getKafkaProducer();
+      const record: ProducerRecord = {
+        topic: USER_LIFECYCLE_TOPIC,
+        messages: [{ value: JSON.stringify(event) }],
+      };
+      await producer.send(record);
+      console.log(`Sent ${event.eventType} event for userId ${event.userId} to Kafka topic ${USER_LIFECYCLE_TOPIC}`);
+    } catch (error) {
+      console.error(`Failed to send user event to Kafka for userId ${event.userId}:`, error);
+    }
+  }
+
+  async createUser(userData: UserCreationAttributes): Promise<User> {
+    const existingUser = await this.userRepository.findUserByEmail(userData.email);
+    if (existingUser) {
+      throw new Error('Email already in use');
+    }
+
+    const hashedPassword = await bcrypt.hash(userData.passwordhash, 10);
+    const newUser = await this.userRepository.createUser({ ...userData, passwordhash: hashedPassword });
+
+    if (newUser && newUser.id) {
+      await this.sendUserEvent({
+        eventType: 'UserCreated',
+        userId: newUser.id,
+        timestamp: new Date().toISOString(),
+      });
+    } else {
+      console.error("User created but ID is missing, cannot send Kafka event.");
+    }
+    return newUser;
   }
 
   async findUserById(id: string): Promise<User | undefined> {
@@ -30,15 +70,25 @@ export class UserService {
     if (updatedUser.passwordhash) {
       updatedUser.passwordhash = await bcrypt.hash(updatedUser.passwordhash, 10);
     }
-    return this.userRepository.updateUser(id, updatedUser);
+    const user = await this.userRepository.updateUser(id, updatedUser);
+    return user;
   }
 
   async deleteUser(id: string): Promise<boolean> {
-    return this.userRepository.deleteUser(id);
+    const success = await this.userRepository.deleteUser(id);
+    if (success) {
+      await this.sendUserEvent({
+        eventType: 'UserDeleted',
+        userId: id,
+        timestamp: new Date().toISOString(),
+      });
+    }
+    return success;
   }
 
   async updateUserPassword(id: string, newPassword: string): Promise<User | undefined> {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    return this.userRepository.updateUser(id, { passwordhash: hashedPassword });
+    const user = await this.userRepository.updateUser(id, { passwordhash: hashedPassword });
+    return user;
   }
 }

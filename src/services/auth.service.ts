@@ -1,34 +1,30 @@
 import { User, UserCreationAttributes } from '../models/user.model';
-import { UserRepository } from '../repositories/user.repository';
+import { UserService } from './user.service'; // Import UserService
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
 export class AuthService {
-  private userRepository: UserRepository;
+  private userService: UserService;
   private jwtSecret: string;
 
-  constructor(userRepository: UserRepository, jwtSecret: string) {
-    this.userRepository = userRepository;
+  constructor(userService: UserService, jwtSecret: string) {
+    this.userService = userService;
     this.jwtSecret = jwtSecret;
   }
 
-  async register(user: UserCreationAttributes): Promise<User> {
-    const hashedPassword = await bcrypt.hash(user.passwordhash, 10);
-    return this.userRepository.createUser({ ...user, passwordhash: hashedPassword });
+  async register(userData: UserCreationAttributes): Promise<User> {
+    return this.userService.createUser(userData);
   }
 
-  async login(email: string, password: string): Promise<{ token: string }> {
-    const user = await this.userRepository.findUserByEmail(email);
-    if (!user) {
-      throw new Error('Invalid credentials');
+  async login(email: string, password: string): Promise<{ token: string } | null> {
+    const user = await this.userService.findUserByEmail(email);
+    if (!user || !user.id) {
+      return null;
     }
-
-    console.log("Plain text password:", password);
-    console.log("Hashed password from DB:", user.passwordhash);
 
     const passwordMatch = await bcrypt.compare(password, user.passwordhash);
     if (!passwordMatch) {
-      throw new Error('Invalid credentials');
+      return null;
     }
 
     const token = jwt.sign({ userId: user.id }, this.jwtSecret, { expiresIn: '1h' });

@@ -10,7 +10,7 @@ const router = express.Router();
 export const setupUserRoutes = (jwtSecret: string) => {
   const userRepository = new UserRepository();
   const userService = new UserService(userRepository);
-  const authService = new AuthService(userRepository, jwtSecret);
+  const authService = new AuthService(userService, jwtSecret);
   const userController = new UserController(userService);
 
   router.get('/users', authMiddleware(authService), userController.getAllUsers.bind(userController));
