@@ -3,22 +3,27 @@ import { UserController } from '../controllers/user.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { AuthService } from '../services/auth.service';
 import { UserService } from '../services/user.service';
-import { UserRepository } from '../repositories/user.repository';
+import { UserRepository, initializeUserRepositoryLogger as initUserRepoLoggerUser } from '../repositories/user.repository';
+import winston from 'winston'; 
 
 const router = express.Router();
 
-export const setupUserRoutes = (jwtSecret: string) => {
-  const userRepository = new UserRepository();
-  const userService = new UserService(userRepository);
-  const authService = new AuthService(userService, jwtSecret);
-  const userController = new UserController(userService);
+export const setupUserRoutes = (jwtSecret: string, logger: winston.Logger) => {
+  initUserRepoLoggerUser(logger);
 
-  router.get('/users', authMiddleware(authService), userController.getAllUsers.bind(userController));
-  router.get('/users/me', authMiddleware(authService), userController.getMe.bind(userController));
-  router.put('/users/me/password', authMiddleware(authService), userController.updateUserPassword.bind(userController));
-  router.get('/users/:id', authMiddleware(authService), userController.getUserById.bind(userController));
-  router.put('/users/:id', authMiddleware(authService), userController.updateUser.bind(userController));
-  router.delete('/users/:id', authMiddleware(authService), userController.deleteUser.bind(userController));
+  const userRepository = new UserRepository(logger);
+  const userService = new UserService(userRepository, logger);
+  const authService = new AuthService(userService, jwtSecret, logger); 
+  const userController = new UserController(userService, logger);
+
+  const effectiveAuthMiddleware = authMiddleware(authService, logger);
+
+  router.get('/users', effectiveAuthMiddleware, userController.getAllUsers.bind(userController));
+  router.get('/users/me', effectiveAuthMiddleware, userController.getMe.bind(userController));
+  router.put('/users/me/password', effectiveAuthMiddleware, userController.updateUserPassword.bind(userController));
+  router.get('/users/:id', effectiveAuthMiddleware, userController.getUserById.bind(userController));
+  router.put('/users/:id', effectiveAuthMiddleware, userController.updateUser.bind(userController));
+  router.delete('/users/:id', effectiveAuthMiddleware, userController.deleteUser.bind(userController));
 
   return router;
 };
