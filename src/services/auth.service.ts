@@ -10,6 +10,10 @@ export class AuthService {
   private logger: winston.Logger;
 
   constructor(userService: UserService, jwtSecret: string, loggerInstance: winston.Logger) {
+    if (!jwtSecret || jwtSecret.trim() === "") {
+      loggerInstance.error('AuthService (user-service): JWT_SECRET is undefined or empty. Cannot sign/verify tokens.', { type: 'ConfigError.AuthService.NoSecret' });
+      throw new Error('JWT_SECRET is undefined or empty for AuthService');
+    }
     this.userService = userService;
     this.jwtSecret = jwtSecret;
     this.logger = loggerInstance;

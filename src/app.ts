@@ -11,6 +11,10 @@ export class App {
 
   constructor(jwtSecret: string) {
     this.app = express();
+    if (!jwtSecret || jwtSecret.trim() === "") {
+      logger.error('AuthService (user-service): JWT_SECRET is undefined or empty. Cannot sign/verify tokens.', { type: 'ConfigError.AuthService.NoSecret' });
+      throw new Error('JWT_SECRET is undefined or empty for AuthService');
+    }
     this.jwtSecret = jwtSecret;
     this.config();
     this.routes();
