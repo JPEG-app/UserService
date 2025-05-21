@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 dotenv.config();
 
-const kafkaBroker = process.env.KAFKA_BROKER || 'localhost:9092';
+const kafkaBroker = process.env.KAFKA_BROKER || 'kafka.kafka-ca1.svc.cluster.local:9092';
 const clientId = process.env.KAFKA_CLIENT_ID_USER || 'user-service-producer';
 
 const kafka = new Kafka({
