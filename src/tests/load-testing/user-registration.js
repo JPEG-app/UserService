@@ -22,7 +22,7 @@ export default function () {
     password: password,
   });
 
-  const res = http.post('http://localhost:8000/auth/register', payload, {
+  const res = http.post('http://192.168.49.2:30080/auth/register', payload, {
     headers: { 'Content-Type': 'application/json' },
     tags: { name: 'Register' },
   });

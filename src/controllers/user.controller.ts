@@ -61,8 +61,13 @@ export class UserController {
         res.status(404).json({ message: 'User not found', correlationId });
       }
     } catch (error: any) {
-      this.logger.error('UserController: updateUser - Internal server error', { correlationId, targetUserId, authUserId: typedReq.userId, error: error.message, stack: error.stack, type: 'ControllerError.updateUser' });
-      res.status(500).json({ message: 'Internal server error', correlationId });
+        if (error.message === 'Email already in use') {
+            this.logger.warn('UserController: updateUser failed - Email already in use', { correlationId, targetUserId, authUserId: typedReq.userId, email: req.body.email, type: 'ControllerValidationWarn.updateUserEmailExists' });
+            res.status(400).json({ message: error.message, correlationId });
+        } else {
+            this.logger.error('UserController: updateUser - Internal server error', { correlationId, targetUserId, authUserId: typedReq.userId, error: error.message, stack: error.stack, type: 'ControllerError.updateUser' });
+            res.status(500).json({ message: 'Internal server error', correlationId });
+        }
     }
   }
 
@@ -120,7 +125,12 @@ export class UserController {
           this.logger.error('UserController: updateUserPassword - authUserId missing', { correlationId, type: 'ControllerAuthError.updateUserPasswordMissingUserId' });
           return res.status(401).json({ message: 'Unauthorized, user ID missing.', correlationId });
       }
-      const updatedUser = await this.userService.updateUserPassword(authUserId, req.body.newPassword, correlationId);
+      const { newPassword } = req.body;
+      if (!newPassword || typeof newPassword !== 'string') {
+        this.logger.warn('UserController: updateUserPassword - Missing or invalid newPassword', { correlationId, authUserId, type: 'ControllerValidationWarn.updateUserPasswordMissing' });
+        return res.status(400).json({ message: 'newPassword is required and must be a string', correlationId });
+      }
+      const updatedUser = await this.userService.updateUserPassword(authUserId, newPassword, correlationId);
       if (updatedUser){
           this.logger.info('UserController: updateUserPassword successful', { correlationId, authUserId, type: 'ControllerLog.updateUserPasswordSuccess' });
           res.status(204).send();

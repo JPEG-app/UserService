@@ -17,7 +17,12 @@ export class AuthController {
     const correlationId = typedReq.id;
     this.logger.info('AuthController: register initiated', { correlationId, email: req.body.email, type: 'ControllerLog.register' });
     try {
-      const user = await this.authService.register(req.body, correlationId);
+      const { username, email, passwordhash } = req.body;
+      if (!username || !email || !passwordhash) {
+        this.logger.warn('AuthController: register failed - Missing fields', { correlationId, body: req.body, type: 'AuthLog.RegisterFail.MissingFields' });
+        return res.status(400).json({ message: 'Username, email, and passwordhash are required', correlationId });
+      }
+      const user = await this.authService.register({ username, email, passwordhash }, correlationId);
       this.logger.info('AuthController: register successful', { correlationId, userId: user.id, email: user.email, type: 'AuthLog.RegisterSuccess' });
       res.status(201).json(user);
     } catch (error: any) {
@@ -37,6 +42,10 @@ export class AuthController {
     const { email, password } = req.body;
     this.logger.info('AuthController: login attempt', { correlationId, email, type: 'ControllerLog.loginAttempt' });
     try {
+      if (!email || !password) {
+        this.logger.warn('AuthController: login failed - Missing email or password', { correlationId, email, type: 'AuthLog.LoginFail.MissingFields' });
+        return res.status(400).json({ message: 'Email and password are required', correlationId });
+      }
       const result = await this.authService.login(email, password, correlationId);
       if (!result) {
         this.logger.warn('AuthController: login failed - Invalid credentials', { correlationId, email, type: 'AuthLog.LoginFail.InvalidCredentials' });

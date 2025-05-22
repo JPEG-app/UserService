@@ -1,17 +1,61 @@
-import { Pool } from 'pg';
+import { Sequelize, DataTypes, Model, Optional, UniqueConstraintError } from 'sequelize';
 import * as dotenv from 'dotenv';
 import { User, UserCreationAttributes, UserUpdateAttributes } from '../models/user.model';
 import winston from 'winston';
 
 dotenv.config();
 
-const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASSWORD,
-  port: parseInt(process.env.DB_PORT || '5432'),
-});
+const sequelize = new Sequelize(
+  process.env.DB_NAME!,
+  process.env.DB_USER!,
+  process.env.DB_PASSWORD!,
+  {
+    host: process.env.DB_HOST!,
+    port: parseInt(process.env.DB_PORT || '5432'),
+    dialect: 'postgres',
+    logging: false,
+  }
+);
+
+class UserModel extends Model<User, UserCreationAttributes> implements User {
+  public id!: string;
+  public username!: string;
+  public email!: string;
+  public passwordhash!: string;
+  public createdAt!: Date;
+  public updatedAt!: Date;
+}
+
+UserModel.init(
+  {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
+    username: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    email: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: 'users_email_key',
+    },
+    passwordhash: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      field: 'passwordhash', 
+    }
+  },
+  {
+    sequelize,
+    tableName: 'users',
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
+  }
+);
 
 let repositoryLogger: winston.Logger;
 
@@ -30,12 +74,12 @@ export class UserRepository {
     }
   }
 
-  private logQuery(query: string, values: any[] | undefined, correlationId?: string, operation?: string) {
-    this.logger.debug(`UserRepository: Executing DB query`, {
+  private logQuery(queryDesc: string, values: any, correlationId?: string, operation?: string) {
+    this.logger.debug(`UserRepository: Executing DB operation`, {
         correlationId,
         operation: operation || 'UnknownUserDBOperation',
-        query,
-        values: process.env.NODE_ENV !== 'production' ? values : '[values_hidden_in_prod]',
+        details: queryDesc,
+        params: process.env.NODE_ENV !== 'production' ? values : '[values_hidden_in_prod]',
         type: 'DBLog.UserQuery'
     });
   }
@@ -44,15 +88,13 @@ export class UserRepository {
     const operation = 'createUser';
     this.logger.info(`UserRepository: ${operation} initiated`, { correlationId, email: user.email, type: `DBLog.${operation}` });
     try {
-      const query = 'INSERT INTO users (username, email, "passwordhash") VALUES ($1, $2, $3) RETURNING *';
-      const values = [user.username, user.email, user.passwordhash];
-      this.logQuery(query, values, correlationId, operation);
-      const result = await pool.query(query, values);
-      this.logger.info(`UserRepository: ${operation} successful`, { correlationId, userId: result.rows[0].id, type: `DBLog.${operation}Success` });
-      return result.rows[0];
+      this.logQuery(`UserModel.create`, user, correlationId, operation);
+      const newUser = await UserModel.create(user);
+      this.logger.info(`UserRepository: ${operation} successful`, { correlationId, userId: newUser.id, type: `DBLog.${operation}Success` });
+      return newUser.toJSON() as User;
     } catch (error: any) {
       this.logger.error(`UserRepository: Error in ${operation}`, { correlationId, email: user.email, error: error.message, stack: error.stack, type: `DBError.${operation}` });
-      if (error.message.includes('duplicate key value violates unique constraint "users_email_key"')) {
+      if (error instanceof UniqueConstraintError && error.message.includes('users_email_key')) {
           throw new Error('Email already in use'); 
       }
       throw new Error('Database error: ' + error.message);
@@ -63,16 +105,15 @@ export class UserRepository {
     const operation = 'findUserById';
     this.logger.info(`UserRepository: ${operation} initiated`, { correlationId, userId: id, type: `DBLog.${operation}` });
     try {
-      const query = 'SELECT * FROM users WHERE id = $1';
-      const values = [id];
-      this.logQuery(query, values, correlationId, operation);
-      const result = await pool.query(query, values);
-      if (result.rows[0]) {
+      this.logQuery(`UserModel.findByPk`, { id }, correlationId, operation);
+      const userInstance = await UserModel.findByPk(id);
+      if (userInstance) {
         this.logger.info(`UserRepository: ${operation} found user`, { correlationId, userId: id, type: `DBLog.${operation}Found` });
+        return userInstance.toJSON() as User;
       } else {
         this.logger.info(`UserRepository: ${operation} user not found`, { correlationId, userId: id, type: `DBLog.${operation}NotFound` });
+        return undefined;
       }
-      return result.rows[0];
     } catch (error: any) {
       this.logger.error(`UserRepository: Error in ${operation}`, { correlationId, userId: id, error: error.message, stack: error.stack, type: `DBError.${operation}` });
       throw new Error('Database error: ' + error.message);
@@ -83,16 +124,15 @@ export class UserRepository {
     const operation = 'findUserByEmail';
     this.logger.info(`UserRepository: ${operation} initiated`, { correlationId, email, type: `DBLog.${operation}` });
     try {
-      const query = 'SELECT * FROM users WHERE email = $1';
-      const values = [email];
-      this.logQuery(query, values, correlationId, operation);
-      const result = await pool.query(query, values);
-      if (result.rows[0]) {
-        this.logger.info(`UserRepository: ${operation} found user`, { correlationId, email, userId: result.rows[0].id, type: `DBLog.${operation}Found` });
+      this.logQuery(`UserModel.findOne({ where: { email } })`, { email }, correlationId, operation);
+      const userInstance = await UserModel.findOne({ where: { email } });
+      if (userInstance) {
+        this.logger.info(`UserRepository: ${operation} found user`, { correlationId, email, userId: userInstance.id, type: `DBLog.${operation}Found` });
+        return userInstance.toJSON() as User;
       } else {
         this.logger.info(`UserRepository: ${operation} user not found`, { correlationId, email, type: `DBLog.${operation}NotFound` });
+        return undefined;
       }
-      return result.rows[0];
     } catch (error: any) {
       this.logger.error(`UserRepository: Error in ${operation}`, { correlationId, email, error: error.message, stack: error.stack, type: `DBError.${operation}` });
       throw new Error('Database error: ' + error.message);
@@ -103,44 +143,47 @@ export class UserRepository {
     const operation = 'updateUser';
     this.logger.info(`UserRepository: ${operation} initiated`, { correlationId, userId: id, data: updatedUser, type: `DBLog.${operation}` });
     try {
-      let setClauses: string[] = [];
-      const values: any[] = [];
-      let paramCount = 1;
-
+      const updateData: Partial<UserUpdateAttributes> = {};
+      let hasUpdates = false;
       if (updatedUser.username !== undefined) {
-        setClauses.push(`username = $${paramCount++}`);
-        values.push(updatedUser.username);
+        updateData.username = updatedUser.username;
+        hasUpdates = true;
       }
       if (updatedUser.email !== undefined) {
-        setClauses.push(`email = $${paramCount++}`);
-        values.push(updatedUser.email);
+        updateData.email = updatedUser.email;
+        hasUpdates = true;
       }
       if (updatedUser.passwordhash !== undefined) {
-        setClauses.push(`"passwordhash" = $${paramCount++}`);
-        values.push(updatedUser.passwordhash);
+        updateData.passwordhash = updatedUser.passwordhash;
+        hasUpdates = true;
       }
 
-      if (setClauses.length === 0) {
+      if (!hasUpdates) {
         this.logger.info(`UserRepository: ${operation} - no fields to update, fetching current user.`, { correlationId, userId: id, type: `DBLog.${operation}NoChanges` });
         return this.findUserById(id, correlationId);
       }
       
-      setClauses.push(`updated_at = CURRENT_TIMESTAMP`);
-      
-      const query = `UPDATE users SET ${setClauses.join(', ')} WHERE id = $${paramCount} RETURNING *`;
-      values.push(id);
-      this.logQuery(query, values, correlationId, operation);
+      this.logQuery(`UserModel.update`, { id, ...updateData }, correlationId, operation);
+      const [numberOfAffectedRows] = await UserModel.update(updateData, {
+        where: { id },
+      });
 
-      const result = await pool.query(query, values);
-      if (result.rows[0]) {
-        this.logger.info(`UserRepository: ${operation} successful`, { correlationId, userId: id, type: `DBLog.${operation}Success` });
+      const userAfterAttempt = await UserModel.findByPk(id);
+
+      if (userAfterAttempt) {
+        if (numberOfAffectedRows > 0) {
+            this.logger.info(`UserRepository: ${operation} successful`, { correlationId, userId: id, type: `DBLog.${operation}Success` });
+        } else {
+            this.logger.info(`UserRepository: ${operation} - user found, but no data fields were modified by the update.`, { correlationId, userId: id, type: `DBLog.${operation}NoActualChange` });
+        }
+        return userAfterAttempt.toJSON() as User;
       } else {
         this.logger.info(`UserRepository: ${operation} - user not found for update`, { correlationId, userId: id, type: `DBLog.${operation}NotFoundForUpdate` });
+        return undefined;
       }
-      return result.rows[0];
     } catch (error: any) {
       this.logger.error(`UserRepository: Error in ${operation}`, { correlationId, userId: id, error: error.message, stack: error.stack, type: `DBError.${operation}` });
-      if (error.message.includes('duplicate key value violates unique constraint "users_email_key"')) {
+      if (error instanceof UniqueConstraintError && error.message.includes('users_email_key')) {
           throw new Error('Email already in use');
       }
       throw new Error('Database error: ' + error.message);
@@ -151,11 +194,9 @@ export class UserRepository {
     const operation = 'deleteUser';
     this.logger.info(`UserRepository: ${operation} initiated`, { correlationId, userId: id, type: `DBLog.${operation}` });
     try {
-      const query = 'DELETE FROM users WHERE id = $1';
-      const values = [id];
-      this.logQuery(query, values, correlationId, operation);
-      const result = await pool.query(query, values);
-      const success = result.rowCount !== null && result.rowCount > 0;
+      this.logQuery(`UserModel.destroy({ where: { id } })`, { id }, correlationId, operation);
+      const numberOfDeletedRows = await UserModel.destroy({ where: { id } });
+      const success = numberOfDeletedRows > 0;
       this.logger.info(`UserRepository: ${operation} ${success ? 'successful' : 'failed (user not found)'}`, { correlationId, userId: id, success, type: `DBLog.${operation}Result` });
       return success;
     } catch (error: any) {
@@ -168,11 +209,10 @@ export class UserRepository {
     const operation = 'findAllUsers';
     this.logger.info(`UserRepository: ${operation} initiated`, { correlationId, type: `DBLog.${operation}` });
     try {
-      const query = 'SELECT * FROM users';
-      this.logQuery(query, undefined, correlationId, operation);
-      const result = await pool.query(query);
-      this.logger.info(`UserRepository: ${operation} found ${result.rows.length} users`, { correlationId, count: result.rows.length, type: `DBLog.${operation}Result` });
-      return result.rows;
+      this.logQuery(`UserModel.findAll()`, {}, correlationId, operation);
+      const users = await UserModel.findAll();
+      this.logger.info(`UserRepository: ${operation} found ${users.length} users`, { correlationId, count: users.length, type: `DBLog.${operation}Result` });
+      return users.map(user => user.toJSON() as User);
     } catch (error: any) {
       this.logger.error(`UserRepository: Error in ${operation}`, { correlationId, error: error.message, stack: error.stack, type: `DBError.${operation}` });
       throw new Error('Database error: ' + error.message);
