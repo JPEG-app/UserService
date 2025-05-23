@@ -29,8 +29,8 @@ class UserModel extends Model<User, UserCreationAttributes> implements User {
 UserModel.init(
   {
     id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
+      type: DataTypes.STRING,
+      defaultValue: DataTypes.STRING,
       primaryKey: true,
     },
     username: {
