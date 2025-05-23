@@ -62,20 +62,22 @@ UserModel.init(
     createdAt: {
         type: DataTypes.DATE,
         allowNull: false,
-        field: 'created_at' 
+        field: 'created_at',
+        defaultValue: DataTypes.NOW, // Ensures Sequelize provides a value, passing its own notNull validation
     },
     updatedAt: {
         type: DataTypes.DATE,
         allowNull: false,
-        field: 'updated_at'
+        field: 'updated_at',
+        defaultValue: DataTypes.NOW, // Ensures Sequelize provides a value, passing its own notNull validation
     }
   },
   {
     sequelize,
     tableName: 'users',
-    timestamps: true,
-    createdAt: 'created_at',
-    updatedAt: 'updated_at',
+    timestamps: true, // Still useful for managing `updatedAt` on updates and general behavior
+    createdAt: 'created_at', // Correctly maps to the DB column name
+    updatedAt: 'updated_at', // Correctly maps to the DB column name
   }
 );
 
@@ -128,7 +130,7 @@ export class UserRepository {
     this.logger.info(`UserRepository: ${operation} initiated`, { correlationId, email: user.email, type: `DBLog.${operation}` });
     try {
       this.logQuery(`UserModel.create`, user, correlationId, operation);
-      const newUserInstance = await UserModel.create(user as any);
+      const newUserInstance = await UserModel.create(user);
       this.logger.info(`UserRepository: ${operation} successful`, { correlationId, userId: newUserInstance.id, type: `DBLog.${operation}Success` });
       return this.toExternalUser(newUserInstance);
     } catch (error: any) {
@@ -212,21 +214,31 @@ export class UserRepository {
       }
 
       this.logQuery(`UserModel.update`, { id: numericId, ...updateData }, correlationId, operation);
+      // Note: UserModel.update will automatically update the 'updatedAt' field due to `timestamps:true`
+      // and the `defaultValue: DataTypes.NOW` on `updatedAt` in the model definition.
       const [numberOfAffectedRows] = await UserModel.update(updateData, {
         where: { id: numericId },
+        returning: false, // Explicitly false or rely on default; findByPk fetches fresh data
       });
 
+      // Fetch the updated user to get the new updatedAt value and other potentially modified fields
+      // especially if hooks or other database-level changes occurred.
       const userAfterAttempt = await UserModel.findByPk(numericId);
+
 
       if (userAfterAttempt) {
         if (numberOfAffectedRows > 0) {
             this.logger.info(`UserRepository: ${operation} successful`, { correlationId, userId: id, type: `DBLog.${operation}Success` });
         } else {
+            // This case might occur if the data provided for update matched existing data,
+            // resulting in no actual change in the DB, hence 0 affected rows.
             this.logger.info(`UserRepository: ${operation} - user found, but no data fields were modified by the update.`, { correlationId, userId: id, type: `DBLog.${operation}NoActualChange` });
         }
         return this.toExternalUser(userAfterAttempt);
       } else {
-        this.logger.info(`UserRepository: ${operation} - user not found for update`, { correlationId, userId: id, type: `DBLog.${operation}NotFoundForUpdate` });
+        // This case should be rare if an update was attempted on an existing ID,
+        // unless the record was deleted between the update call and findByPk.
+        this.logger.info(`UserRepository: ${operation} - user not found after update attempt`, { correlationId, userId: id, type: `DBLog.${operation}NotFoundAfterUpdate` });
         return undefined;
       }
     } catch (error: any) {
