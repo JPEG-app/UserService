@@ -29,8 +29,8 @@ class UserModel extends Model<User, UserCreationAttributes> implements User {
 UserModel.init(
   {
     id: {
-      type: DataTypes.STRING,
-      defaultValue: DataTypes.STRING,
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
       primaryKey: true,
     },
     username: {
@@ -45,7 +45,7 @@ UserModel.init(
     passwordhash: {
       type: DataTypes.STRING,
       allowNull: false,
-      field: 'passwordhash', 
+      field: 'passwordhash',
     }
   },
   {
@@ -95,13 +95,13 @@ export class UserRepository {
     } catch (error: any) {
       this.logger.error(`UserRepository: Error in ${operation}`, { correlationId, email: user.email, error: error.message, stack: error.stack, type: `DBError.${operation}` });
       if (error instanceof UniqueConstraintError && error.message.includes('users_email_key')) {
-          throw new Error('Email already in use'); 
+          throw new Error('Email already in use');
       }
       throw new Error('Database error: ' + error.message);
     }
   }
 
-  async findUserById(id: string, correlationId?: string): Promise<User | undefined> {
+  async findUserById(id: number, correlationId?: string): Promise<User | undefined> {
     const operation = 'findUserById';
     this.logger.info(`UserRepository: ${operation} initiated`, { correlationId, userId: id, type: `DBLog.${operation}` });
     try {
@@ -139,7 +139,7 @@ export class UserRepository {
     }
   }
 
-  async updateUser(id: string, updatedUser: UserUpdateAttributes, correlationId?: string): Promise<User | undefined> {
+  async updateUser(id: number, updatedUser: UserUpdateAttributes, correlationId?: string): Promise<User | undefined> {
     const operation = 'updateUser';
     this.logger.info(`UserRepository: ${operation} initiated`, { correlationId, userId: id, data: updatedUser, type: `DBLog.${operation}` });
     try {
@@ -162,7 +162,7 @@ export class UserRepository {
         this.logger.info(`UserRepository: ${operation} - no fields to update, fetching current user.`, { correlationId, userId: id, type: `DBLog.${operation}NoChanges` });
         return this.findUserById(id, correlationId);
       }
-      
+
       this.logQuery(`UserModel.update`, { id, ...updateData }, correlationId, operation);
       const [numberOfAffectedRows] = await UserModel.update(updateData, {
         where: { id },
@@ -190,7 +190,7 @@ export class UserRepository {
     }
   }
 
-  async deleteUser(id: string, correlationId?: string): Promise<boolean> {
+  async deleteUser(id: number, correlationId?: string): Promise<boolean> {
     const operation = 'deleteUser';
     this.logger.info(`UserRepository: ${operation} initiated`, { correlationId, userId: id, type: `DBLog.${operation}` });
     try {
