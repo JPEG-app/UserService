@@ -5,19 +5,32 @@ import { setupUserRoutes } from './routes/user.routes';
 import { setupAuthRoutes } from './routes/auth.routes';
 import logger, { assignRequestId, requestLogger, logError, RequestWithId } from './utils/logger';
 
+import { collectDefaultMetrics, Registry } from 'prom-client';
+
 export class App {
   public app: Application;
   private jwtSecret: string;
+  private metricsRegistry: Registry;
 
   constructor(jwtSecret: string) {
     this.app = express();
+
     if (!jwtSecret || jwtSecret.trim() === "") {
-      logger.error('AuthService (user-service): JWT_SECRET is undefined or empty. Cannot sign/verify tokens.', { type: 'ConfigError.AuthService.NoSecret' });
+      logger.error('AuthService (user-service): JWT_SECRET is undefined or empty. Cannot sign/verify tokens.', {
+        type: 'ConfigError.AuthService.NoSecret'
+      });
       throw new Error('JWT_SECRET is undefined or empty for AuthService');
     }
+
     this.jwtSecret = jwtSecret;
+
+    // Initialize Prometheus registry and collect default metrics
+    this.metricsRegistry = new Registry();
+    collectDefaultMetrics({ register: this.metricsRegistry });
+
     this.config();
     this.routes();
+    this.metrics(); // <- new method
     this.errorHandling();
   }
 
@@ -40,6 +53,7 @@ export class App {
       },
       credentials: true,
     };
+
     this.app.use(cors(corsOptions));
     this.app.use(bodyParser.json());
     this.app.use(bodyParser.urlencoded({ extended: false }));
@@ -49,6 +63,18 @@ export class App {
   private routes(): void {
     this.app.use('/auth', setupAuthRoutes(this.jwtSecret, logger));
     this.app.use('/', setupUserRoutes(this.jwtSecret, logger));
+  }
+
+  private metrics(): void {
+    this.app.get('/metrics', async (_req: ExpressRequest, res: Response) => {
+      try {
+        res.set('Content-Type', this.metricsRegistry.contentType);
+        res.send(await this.metricsRegistry.metrics());
+      } catch (err) {
+        logger.error('Failed to expose Prometheus metrics', { err });
+        res.status(500).send('Failed to expose metrics');
+      }
+    });
   }
 
   private errorHandling(): void {
