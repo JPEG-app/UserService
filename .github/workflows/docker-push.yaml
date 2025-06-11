@@ -109,4 +109,3 @@ jobs:
         run: |
           kubectl rollout restart deployment user-service-deployment \
             --namespace=default
-
