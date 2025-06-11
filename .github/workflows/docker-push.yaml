@@ -37,10 +37,23 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Wait for PostgreSQL service
-        uses: jwlawson/actions-wait-for-services@v1
-        with:
-          services: test_db:5432
+      # ====================================================================
+      - name: Wait for PostgreSQL to be ready
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+          
+          counter=0
+          until PGPASSWORD=password pg_isready -h test_db -p 5432 -U "postgres" -d "users"; do
+            sleep 1
+            counter=$((counter + 1))
+            if [ $counter -gt 30 ]; then
+              echo "Timeout: PostgreSQL is not ready after 30 seconds."
+              exit 1
+            fi
+            echo "Waiting for PostgreSQL... ($counter/30)"
+          done
+          echo "PostgreSQL is ready!"
+      # ====================================================================
 
       - name: Run tests
         env:
