@@ -92,3 +92,21 @@ jobs:
         run: |
           docker tag user-service:latest ${{ secrets.DOCKERHUB_USERNAME }}/user-service:latest
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/user-service:latest
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: jpeg-project
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          export_default_credentials: true
+
+      - name: Configure kubectl
+        run: |
+          gcloud container clusters get-credentials jpeg-cluster \
+            --region europe-west4
+
+      - name: Restart Kubernetes deployment
+        run: |
+          kubectl rollout restart deployment user-service-deployment \
+            --namespace=default
+
