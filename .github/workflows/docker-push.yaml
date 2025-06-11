@@ -39,7 +39,7 @@ jobs:
 
       - name: Run tests
         env:
-          DB_HOST_TEST: localhost 
+          DB_HOST_TEST: test_db 
           DB_PORT_TEST: 5432  
           DB_USER_TEST: postgres
           DB_PASSWORD_TEST: password
