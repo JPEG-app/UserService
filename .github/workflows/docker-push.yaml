@@ -1,10 +1,3 @@
-name: Docker Push and Test
-
-on:
-  push:
-    branches:
-      - main
-
 jobs:
   test-build-and-push:
     runs-on: ubuntu-latest
@@ -36,28 +29,29 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+      
+      - name: Display network status
+        run: sudo ss -lntp
 
-      # ====================================================================
-      - name: Wait for PostgreSQL to be ready
+      - name: Wait for PostgreSQL to be ready on localhost
         run: |
           sudo apt-get update && sudo apt-get install -y postgresql-client
-          
           counter=0
-          until PGPASSWORD=password pg_isready -h test_db -p 5432 -U "postgres" -d "users"; do
+          # Use 'localhost' as the host (-h) because of the port mapping
+          until PGPASSWORD=password pg_isready -h localhost -p 5432 -U "postgres"; do
             sleep 1
             counter=$((counter + 1))
-            if [ $counter -gt 30 ]; then
-              echo "Timeout: PostgreSQL is not ready after 30 seconds."
+            if [ $counter -gt 60 ]; then # Increased timeout to 60s
+              echo "Timeout: PostgreSQL is not ready after 60 seconds."
               exit 1
             fi
-            echo "Waiting for PostgreSQL... ($counter/30)"
+            echo "Waiting for PostgreSQL... ($counter/60)"
           done
           echo "PostgreSQL is ready!"
-      # ====================================================================
 
       - name: Run tests
         env:
-          DB_HOST_TEST: test_db
+          DB_HOST_TEST: localhost
           DB_PORT_TEST: 5432  
           DB_USER_TEST: postgres
           DB_PASSWORD_TEST: password
