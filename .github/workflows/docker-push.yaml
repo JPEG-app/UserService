@@ -23,14 +23,25 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
-        volumes:
-          - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
     env:
       DATABASE_URL: postgres://postgres:password@localhost:5432/users
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - name: Wait for Postgres to be ready
+        run: |
+          until pg_isready -h localhost -p 5432 -U postgres; do
+            sleep 1
+          done
+        env:
+          PGPASSWORD: password
+
+      - name: Execute init.sql
+        run: psql "$DATABASE_URL" -f ./db/init.sql
+        env:
+          PGPASSWORD: password
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
