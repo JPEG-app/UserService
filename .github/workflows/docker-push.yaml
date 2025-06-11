@@ -66,12 +66,28 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push Docker image for user-service
+      - name: Build Docker image for user-service (no push)
         if: success()
         uses: docker/build-push-action@v3
         with:
           context: .
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/user-service:latest
+          push: false
+          tags: user-service:latest
           cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/user-service:cache
           cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/user-service:cache,mode=max
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: image
+          image-ref: user-service:latest
+          format: table
+          exit-code: 1
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+
+      - name: Push Docker image
+        if: success()
+        run: |
+          docker tag user-service:latest ${{ secrets.DOCKERHUB_USERNAME }}/user-service:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/user-service:latest
