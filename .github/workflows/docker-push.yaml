@@ -1,4 +1,4 @@
-name: Docker Push
+name: Docker Push and Test
 
 on:
   push:
@@ -6,8 +6,23 @@ on:
       - main
 
 jobs:
-  build-and-push:
+  test-build-and-push:
     runs-on: ubuntu-latest
+
+    services:
+      test_db:
+        image: postgres:15 
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: users
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout code
@@ -23,21 +38,28 @@ jobs:
         run: npm ci
 
       - name: Run tests
+        env:
+          DB_HOST_TEST: localhost 
+          DB_PORT_TEST: 5432  
+          DB_USER_TEST: postgres
+          DB_PASSWORD_TEST: password
+          DB_NAME_TEST: users
+          JWT_SECRET: 'a-secure-secret-for-testing'
         run: npm test
 
       - name: Set up Docker Buildx
-        if: success()
+        if: success() 
         uses: docker/setup-buildx-action@v2
 
       - name: Login to Docker Hub
-        if: success()
+        if: success() 
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push Docker image for user-service
-        if: success()
+        if: success() 
         uses: docker/build-push-action@v3
         with:
           context: .
@@ -46,8 +68,8 @@ jobs:
           cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/user-service:cache
           cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/user-service:cache,mode=max
 
-      # - name: Build and push PostgreSQL image
-      #   if: success() # Only run if tests pass
+      # - name: Build and push PostgreSQL image (if custom)
+      #   if: success()
       #   uses: docker/build-push-action@v3
       #   with:
       #     context: ./db

@@ -37,12 +37,12 @@ let agent: TestAgent;
 let dbPool: Pool;
 
 // --- Database and JWT Configuration ---
-const TEST_DB_HOST = process.env.DB_HOST_TEST || 'localhost';
-const TEST_DB_PORT = parseInt(process.env.DB_PORT_TEST || '5432');
-const TEST_DB_USER = process.env.DB_USER_TEST || process.env.DB_USER;
-const TEST_DB_PASSWORD = process.env.DB_PASSWORD_TEST || process.env.DB_PASSWORD;
-const TEST_DB_NAME = process.env.DB_NAME_TEST || process.env.DB_NAME;
-const JWT_SECRET_FOR_TESTS = process.env.JWT_SECRET_TEST || 'test-secret-key';
+const TEST_DB_HOST = 'localhost';
+const TEST_DB_PORT = 5432;
+const TEST_DB_USER = 'postgres';
+const TEST_DB_PASSWORD = 'password';
+const TEST_DB_NAME = 'users';
+const JWT_SECRET_FOR_TESTS ='a-secure-secret-for-testing';
 
 interface UserApiResponse {
   id: number;
