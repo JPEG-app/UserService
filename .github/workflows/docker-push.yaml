@@ -17,14 +17,14 @@ jobs:
           POSTGRES_PASSWORD: password
           POSTGRES_DB: users
         ports:
-          - 5432:5432
+          - 6969:5432
         options: >-
           --health-cmd="pg_isready -U postgres"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
     env:
-      DATABASE_URL: postgres://postgres:password@localhost:5432/users
+      DATABASE_URL: postgres://postgres:password@localhost:6969/users
 
     steps:
       - name: Checkout code
@@ -32,7 +32,7 @@ jobs:
 
       - name: Wait for Postgres to be ready
         run: |
-          until pg_isready -h localhost -p 5432 -U postgres; do
+          until pg_isready -h localhost -p 6969 -U postgres; do
             sleep 1
           done
         env:
