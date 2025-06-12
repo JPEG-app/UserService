@@ -38,7 +38,7 @@ let dbPool: Pool;
 
 // --- Database and JWT Configuration ---
 const TEST_DB_HOST = process.env.DB_HOST_TEST || 'localhost';
-const TEST_DB_PORT = parseInt(process.env.DB_PORT_TEST || '5432', 10);
+const TEST_DB_PORT = parseInt(process.env.DB_PORT_TEST || '6969', 10);
 const TEST_DB_USER = process.env.DB_USER_TEST || 'postgres';
 const TEST_DB_PASSWORD = process.env.DB_PASSWORD_TEST || 'password';
 const TEST_DB_NAME = process.env.DB_NAME_TEST || 'users';
