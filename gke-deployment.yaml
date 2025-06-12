@@ -52,6 +52,7 @@ spec:
       labels:
         app: postgres-db
     spec:
+      automountServiceAccountToken: false
       containers:
       - name: postgres
         image: postgres:15 
@@ -70,6 +71,7 @@ spec:
           limits: 
             cpu: "500m"
             memory: "1Gi"
+            ephemeral-storage: "1Gi"
         volumeMounts:
         - name: db-storage
           mountPath: /var/lib/postgresql/data
@@ -112,6 +114,7 @@ spec:
       labels:
         app: user-service
     spec:
+      automountServiceAccountToken: false
       containers:
       - name: user-service
         image: dgeorgiev0348/user-service:latest
