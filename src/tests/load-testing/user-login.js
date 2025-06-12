@@ -1,6 +1,5 @@
 import http from 'k6/http';
 import { check, group } from 'k6';
-import { randomString } from 'https://jslib.k6.io/k6-utils/1.4.0/index.js';
 
 export const options = {
   vus: 1000,
@@ -14,7 +13,7 @@ export const options = {
 
 function userLogin(email, password) {
   const loginPayload = JSON.stringify({ email: email, password: password });
-  const loginRes = http.post('http://192.168.49.2:31146/auth/login', loginPayload, {
+  const loginRes = http.post('https://jpeg.gateway/auth/login', loginPayload, {
     headers: { 'Content-Type': 'application/json' },
     tags: { name: 'Login' },
   });
@@ -36,7 +35,7 @@ export default function () {
 
     if (token) {
       group('Get User Profile', () => {
-        const profileRes = http.get('http://192.168.49.2:31146/users/me', {
+        const profileRes = http.get('https://jpeg.gateway/users/me', {
           headers: { Authorization: `Bearer ${token}` },
           tags: { name: 'GetProfile' },
         });
