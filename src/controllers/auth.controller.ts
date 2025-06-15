@@ -24,10 +24,10 @@ export class AuthController {
       }
       const user = await this.authService.register({ username, email, passwordhash }, correlationId);
       this.logger.info('AuthController: register successful', { correlationId, userId: user.id, email: user.email, type: 'AuthLog.RegisterSuccess' });
-      res.status(201).json(user);
+      res.status(201).json({ id: user.id, username: user.username, email: user.email });
     } catch (error: any) {
-      if (error.message === 'Email already in use') {
-        this.logger.warn('AuthController: register failed - Email already in use', { correlationId, email: req.body.email, type: 'AuthLog.RegisterFail.EmailExists' });
+      if (error.message.includes('Email already in use') || error.message.includes('provision user')) {
+        this.logger.warn('AuthController: register failed', { correlationId, email: req.body.email, error: error.message, type: 'AuthLog.RegisterFail.KnownError' });
         res.status(400).json({ message: error.message, correlationId });
       } else {
         this.logger.error('AuthController: register - Internal server error', { correlationId, email: req.body.email, error: error.message, stack: error.stack, type: 'ControllerError.register' });

@@ -164,6 +164,16 @@ spec:
             secretKeyRef:
               name: user-service-secret
               key: JWT_SECRET
+        - name: STREAM_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: stream-secret
+              key: STREAM_API_KEY
+        - name: STREAM_PRIVATE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: stream-secret
+              key: STREAM_PRIVATE_API_KEY
 ---
 apiVersion: v1
 kind: Service
