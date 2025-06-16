@@ -57,6 +57,8 @@ const TEST_DB_USER = process.env.DB_USER_TEST || 'postgres';
 const TEST_DB_PASSWORD = process.env.DB_PASSWORD_TEST || 'password';
 const TEST_DB_NAME = process.env.DB_NAME_TEST || 'users';
 const JWT_SECRET_FOR_TESTS = process.env.TEST_JWT_SECRET || 'a-secure-secret-for-testing';
+const STREAM_API_KEY = process.env.STREAM_API_KEY || "dummy-key-for-ci"
+const STREAM_PRIVATE_API_KEY = process.env.STREAM_PRIVATE_API_KEY || "dummy-secret-for-ci"
 
 interface UserApiResponse {
   id: string;
@@ -72,6 +74,8 @@ beforeAll(async () => {
   process.env.DB_USER = TEST_DB_USER;
   process.env.DB_PASSWORD = TEST_DB_PASSWORD;
   process.env.DB_NAME = TEST_DB_NAME;
+  process.env.STREAM_API_KEY = STREAM_API_KEY;
+  process.env.STREAM_PRIVATE_API_KEY = STREAM_PRIVATE_API_KEY;
 
   if (!process.env.USER_LIFECYCLE_TOPIC) {
     process.env.USER_LIFECYCLE_TOPIC = 'user_lifecycle_events_test';
