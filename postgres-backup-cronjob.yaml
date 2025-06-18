@@ -1,0 +1,42 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+spec:
+  schedule: "0 */6 * * *"  # every 6 hours
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: backup
+            image: google/cloud-sdk:slim
+            command:
+            - /bin/bash
+            - -c
+            - |
+              apt-get update && apt-get install -y postgresql-client gzip
+              export PGPASSWORD="$POSTGRES_PASSWORD"
+              TIMESTAMP=$(date +%Y%m%d-%H%M)
+              pg_dump -h db-service -U "$POSTGRES_USER" -d users | gzip > /tmp/backup-$TIMESTAMP.sql.gz
+              gsutil cp /tmp/backup-$TIMESTAMP.sql.gz gs://my-postgres-backups/
+            env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: POSTGRES_PASSWORD
+            volumeMounts:
+            - name: gcp-sa
+              mountPath: /var/secrets/google
+              readOnly: true
+          volumes:
+          - name: gcp-sa
+            secret:
+              secretName: gcs-service-account
