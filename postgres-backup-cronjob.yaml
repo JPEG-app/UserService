@@ -3,7 +3,7 @@ kind: CronJob
 metadata:
   name: postgres-backup
 spec:
-  schedule: "0 */6 * * *"  # every 6 hours
+  schedule: "0 */6 * * *"
   jobTemplate:
     spec:
       template:
@@ -17,10 +17,14 @@ spec:
             - -c
             - |
               apt-get update && apt-get install -y postgresql-client gzip
+              gcloud auth activate-service-account --key-file=/var/secrets/google/key.json
               export PGPASSWORD="$POSTGRES_PASSWORD"
               TIMESTAMP=$(date +%Y%m%d-%H%M)
+              echo "Backing up database at $TIMESTAMP"
               pg_dump -h db-service -U "$POSTGRES_USER" -d users | gzip > /tmp/backup-$TIMESTAMP.sql.gz
+              echo "Uploading backup to GCS..."
               gsutil cp /tmp/backup-$TIMESTAMP.sql.gz gs://my-postgres-backups/
+              echo "Backup complete"
             env:
             - name: POSTGRES_USER
               valueFrom:
